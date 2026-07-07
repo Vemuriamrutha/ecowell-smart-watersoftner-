@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoWell — Smart Water Softener Dashboard</title>
+  <meta name="description" content="Real-time IoT monitoring dashboard for EcoWell Smart Water Softener. Track sensor data, device state, alerts, and trigger remote regeneration." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────────────────────── -->
+<header id="header">
+  <div class="header-inner">
+    <div class="logo-group">
+      <div class="logo-icon">💧</div>
+      <div>
+        <h1>EcoWell IoT Dashboard</h1>
+        <p class="subtitle">Smart Water Softener · Real-Time Monitor</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-dot" id="liveDot"></div>
+      <span class="live-label" id="liveLabel">Connecting…</span>
+      <div class="last-update">Last update: <span id="lastUpdate">—</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ── MAIN ────────────────────────────────────────────────────────────── -->
+<main class="container">
+
+  <!-- Row 1: Status cards -->
+  <section class="row top-row" aria-label="Device status summary">
+
+    <div class="card status-card" id="stateCard">
+      <div class="card-icon">⚙️</div>
+      <div class="card-body">
+        <div class="card-label">Device State</div>
+        <div class="state-badge" id="stateBadge">—</div>
+        <div class="fault-reason" id="faultReason"></div>
+      </div>
+    </div>
+
+    <div class="card status-card" id="powerCard">
+      <div class="card-icon" id="powerIcon">🔌</div>
+      <div class="card-body">
+        <div class="card-label">Power Status</div>
+        <div class="card-value" id="powerValue">—</div>
+      </div>
+    </div>
+
+    <div class="card status-card" id="regenCard">
+      <div class="card-icon">🔄</div>
+      <div class="card-body">
+        <div class="card-label">Regeneration</div>
+        <div class="card-value" id="regenValue">—</div>
+      </div>
+    </div>
+
+    <div class="card status-card health-card">
+      <div class="card-icon">🏥</div>
+      <div class="card-body">
+        <div class="card-label">Device Health</div>
+        <div class="health-score-wrap">
+          <div class="health-score" id="healthScore">—</div>
+          <div class="health-grade" id="healthGrade"></div>
+        </div>
+        <div class="health-bar-bg"><div class="health-bar-fill" id="healthBar"></div></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Row 2: Sensor gauges -->
+  <section class="row sensor-row" aria-label="Live sensor readings">
+
+    <div class="card sensor-card" id="flowCard">
+      <div class="sensor-top">
+        <span class="sensor-icon">💧</span>
+        <span class="sensor-name">Water Flow</span>
+      </div>
+      <div class="sensor-value" id="flowValue">—</div>
+      <div class="sensor-unit">L / min</div>
+      <div class="gauge-bar-bg"><div class="gauge-bar-fill" id="flowBar" style="--pct:0%"></div></div>
+      <div class="sensor-range">0 – 15 L/min</div>
+    </div>
+
+    <div class="card sensor-card" id="pressureCard">
+      <div class="sensor-top">
+        <span class="sensor-icon">⚡</span>
+        <span class="sensor-name">Water Pressure</span>
+      </div>
+      <div class="sensor-value" id="pressureValue">—</div>
+      <div class="sensor-unit">bar</div>
+      <div class="gauge-bar-bg"><div class="gauge-bar-fill" id="pressureBar" style="--pct:0%"></div></div>
+      <div class="sensor-range">0 – 6 bar</div>
+    </div>
+
+    <div class="card sensor-card" id="saltCard">
+      <div class="sensor-top">
+        <span class="sensor-icon">🧂</span>
+        <span class="sensor-name">Salt Level</span>
+      </div>
+      <div class="sensor-value" id="saltValue">—</div>
+      <div class="sensor-unit">%</div>
+      <div class="gauge-bar-bg"><div class="gauge-bar-fill" id="saltBar" style="--pct:0%"></div></div>
+      <div class="sensor-range">0 – 100 %</div>
+    </div>
+
+    <div class="card sensor-card" id="tdsCard">
+      <div class="sensor-top">
+        <span class="sensor-icon">🧪</span>
+        <span class="sensor-name">TDS / Water Quality</span>
+      </div>
+      <div class="sensor-value" id="tdsValue">—</div>
+      <div class="sensor-unit">ppm</div>
+      <div class="gauge-bar-bg"><div class="gauge-bar-fill tds-bar" id="tdsBar" style="--pct:0%"></div></div>
+      <div class="sensor-range">50 – 1000 ppm</div>
+    </div>
+
+  </section>
+
+  <!-- Row 3: Alerts + Controls -->
+  <section class="row mid-row" aria-label="Alerts and device controls">
+
+    <!-- Active alerts -->
+    <div class="card alerts-card">
+      <div class="card-header">
+        <h2>🚨 Active Alerts</h2>
+        <span class="alert-count" id="alertCount">0</span>
+      </div>
+      <ul class="alerts-list" id="alertsList">
+        <li class="no-alerts">✅ All systems nominal</li>
+      </ul>
+    </div>
+
+    <!-- Remote Control -->
+    <div class="card control-card">
+      <div class="card-header">
+        <h2>🎛️ Remote Control</h2>
+        <span class="control-note">Commands verified with safety checks</span>
+      </div>
+
+      <div class="control-grid">
+
+        <button class="ctrl-btn primary-btn" id="btnRegen" onclick="sendCommand('regenerate')">
+          <span class="btn-icon">🔄</span>
+          <span class="btn-label">Start Regeneration</span>
+          <span class="btn-sub">Safety-checked</span>
+        </button>
+
+        <button class="ctrl-btn warn-btn" id="btnLowSalt" onclick="sendCommand('force_low_salt')">
+          <span class="btn-icon">🧂</span>
+          <span class="btn-label">Simulate Low Salt</span>
+          <span class="btn-sub">Debug mode</span>
+        </button>
+
+        <button class="ctrl-btn warn-btn" id="btnLowPressure" onclick="sendCommand('force_low_pressure')">
+          <span class="btn-icon">⚡</span>
+          <span class="btn-label">Simulate Low Pressure</span>
+          <span class="btn-sub">Debug mode</span>
+        </button>
+
+        <button class="ctrl-btn warn-btn" id="btnHighTDS" onclick="sendCommand('force_high_tds')">
+          <span class="btn-icon">🧪</span>
+          <span class="btn-label">Simulate High TDS</span>
+          <span class="btn-sub">Debug mode</span>
+        </button>
+
+        <button class="ctrl-btn danger-btn" id="btnPowerFail" onclick="sendCommand('force_power_failure')">
+          <span class="btn-icon">⚠️</span>
+          <span class="btn-label">Simulate Power Failure</span>
+          <span class="btn-sub">Debug mode</span>
+        </button>
+
+        <button class="ctrl-btn danger-btn" id="btnRegenFail" onclick="sendCommand('force_regen_fail')">
+          <span class="btn-icon">❌</span>
+          <span class="btn-label">Simulate Regen Fail</span>
+          <span class="btn-sub">Debug mode</span>
+        </button>
+
+        <button class="ctrl-btn primary-btn full-width" id="btnOTA" onclick="sendCommand('ota_update')">
+          <span class="btn-icon">📥</span>
+          <span class="btn-label">Trigger OTA Firmware Update</span>
+          <span class="btn-sub">Firmware v1.1.0 (Mock download + reboot)</span>
+        </button>
+
+        <button class="ctrl-btn reset-btn full-width" id="btnReset" onclick="sendCommand('reset_debug')">
+          <span class="btn-icon">✅</span>
+          <span class="btn-label">Reset All Debug Conditions</span>
+        </button>
+
+      </div>
+
+      <div class="cmd-feedback" id="cmdFeedback"></div>
+    </div>
+
+  </section>
+
+  <!-- Row 4: Event history + Safety status -->
+  <section class="row bottom-row" aria-label="Event history and safety details">
+
+    <!-- Event log -->
+    <div class="card events-card">
+      <div class="card-header">
+        <h2>📋 Event History</h2>
+        <div style="display: flex; gap: 8px;">
+          <a href="/api/logs/download" class="small-btn" style="text-decoration: none; background: rgba(59, 157, 255, 0.2); color: #3b9dff; border: 1px solid rgba(59, 157, 255, 0.3);">Download log file</a>
+          <button class="small-btn" id="clearEventsBtn" onclick="clearEventsView()">Clear view</button>
+        </div>
+      </div>
+      <ul class="events-list" id="eventsList">
+        <li class="no-events">No events yet.</li>
+      </ul>
+    </div>
+
+    <!-- Safety status -->
+    <div class="card safety-card">
+      <div class="card-header">
+        <h2>🛡️ Regeneration Safety Checks</h2>
+      </div>
+      <ul class="safety-list" id="safetyList">
+        <li class="safety-item" id="s-salt">
+          <span class="safety-icon">⏳</span>
+          <div>
+            <strong>Salt Level &gt; 15%</strong>
+            <p>Sufficient salt needed to complete cycle</p>
+          </div>
+        </li>
+        <li class="safety-item" id="s-pressure">
+          <span class="safety-icon">⏳</span>
+          <div>
+            <strong>Water Pressure ≥ 1.0 bar</strong>
+            <p>Adequate pressure for backwash flow</p>
+          </div>
+        </li>
+        <li class="safety-item" id="s-power">
+          <span class="safety-icon">⏳</span>
+          <div>
+            <strong>Power Available</strong>
+            <p>Device must be powered to regenerate</p>
+          </div>
+        </li>
+        <li class="safety-item" id="s-state">
+          <span class="safety-icon">⏳</span>
+          <div>
+            <strong>Not in FAULT / Already Running</strong>
+            <p>No active fault or ongoing regeneration</p>
+          </div>
+        </li>
+        <li class="safety-item" id="s-timeout">
+          <span class="safety-icon">✅</span>
+          <div>
+            <strong>Timeout Watchdog (20s)</strong>
+            <p>Auto-fault if cycle doesn't complete in time</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+  </section>
+
+</main>
+
+<!-- ── TOAST ───────────────────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>

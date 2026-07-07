@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+device/device_activity.log
+device/device_state.json
+.vscode/
+.idea/
+.gemini/
